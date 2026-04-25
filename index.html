@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频效果对比</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-selector {
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: #111;
+        }
+
+        .video-btn {
+            padding: 8px 16px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #888;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .video-btn:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        .video-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .comparison-tabs {
+            padding: 8px 12px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            background: #111;
+            border-bottom: 1px solid #222;
+        }
+
+        .comparison-tab {
+            padding: 6px 14px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #666;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .comparison-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 300px;
+            background: #000;
+            cursor: col-resize;
+        }
+
+        .video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #leftVideo {
+            z-index: 1;
+        }
+
+        #rightVideo {
+            z-index: 2;
+            clip-path: inset(0 0 0 50%);
+        }
+
+        .slider-line {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            z-index: 10;
+            transform: translateX(-50%);
+            cursor: col-resize;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 7px;
+            transform: translate(-50%, -50%);
+            cursor: col-resize;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .video-label {
+            position: absolute;
+            top: 16px;
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .label-left {
+            left: 16px;
+        }
+
+        .label-right {
+            right: 16px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 12px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .controls {
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: #111;
+        }
+
+        .control-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #222;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: #333;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .control-btn.active {
+            background: #e00;
+        }
+
+        .progress-bar {
+            flex: 1;
+            min-width: 150px;
+            max-width: 400px;
+            height: 5px;
+            background: #333;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            font-size: 12px;
+            color: #888;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            color: #555;
+            background: #0a0a0a;
+        }
+
+        .keyboard-hint kbd {
+            padding: 2px 5px;
+            background: #222;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
+
+        /* 全屏模式 */
+        .fullscreen .video-selector,
+        .fullscreen .comparison-tabs,
+        .fullscreen .keyboard-hint {
+            display: none;
+        }
+
+        .fullscreen .video-wrapper {
+            height: 100vh;
+        }
+
+        .fullscreen .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+        }
+
+        .exit-fullscreen-btn {
+            display: none;
+        }
+
+        .fullscreen .exit-fullscreen-btn {
+            display: flex;
+        }
+
+        .fullscreen .enter-fullscreen-btn {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <nav class="video-selector">
+        <button class="video-btn active" data-video="fight">战斗场景</button>
+        <button class="video-btn" data-video="ink">水墨风格</button>
+        <button class="video-btn" data-video="war01">战争场景1</button>
+        <button class="video-btn" data-video="war02">战争场景2</button>
+        <button class="video-btn" data-video="general">将军对决</button>
+    </nav>
+
+    <div class="comparison-tabs">
+        <button class="comparison-tab active" data-mode="prob">原视频 vs prob-4</button>
+        <button class="comparison-tab" data-mode="slp">原视频 vs slp-2.5</button>
+    </div>
+
+    <div class="video-wrapper" id="videoWrapper">
+        <video id="leftVideo" muted playsinline preload="auto"></video>
+        <video id="rightVideo" muted playsinline preload="auto"></video>
+        <div class="slider-line" id="sliderLine">
+            <div class="slider-handle"></div>
+        </div>
+        <span class="video-label label-left" id="leftLabel">原视频</span>
+        <span class="video-label label-right" id="rightLabel">prob-4</span>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <span class="loading-text">加载中...</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-btn primary" id="playBtn">
+            <span id="playIcon">▶</span>
+        </button>
+        <button class="control-btn" id="syncBtn">同步</button>
+        <button class="control-btn" id="enterFullscreenBtn">全屏</button>
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+        <button class="control-btn exit-fullscreen-btn" id="exitFullscreenBtn">退出全屏</button>
+    </div>
+
+    <div class="keyboard-hint">
+        <kbd>空格</kbd> 暂停/播放 &nbsp;|&nbsp; <kbd>←</kbd><kbd>→</kbd> 调整滑块 &nbsp;|&nbsp; <kbd>F</kbd> 全屏
+    </div>
+
+    <script>
+        // 视频配置
+        const videoConfig = {
+            fight: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight_01.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight-slp-2.5.mp4'
+            },
+            ink: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink-slp-2.5.mp4'
+            },
+            war01: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01-slp-2.5.mp4'
+            },
+            war02: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02-slp-2.5.mp4'
+            },
+            general: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight_prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight_slp-2.5.mp4'
+            }
+        };
+
+        // DOM 元素
+        const leftVideo = document.getElementById('leftVideo');
+        const rightVideo = document.getElementById('rightVideo');
+        const sliderLine = document.getElementById('sliderLine');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const syncBtn = document.getElementById('syncBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const leftLabel = document.getElementById('leftLabel');
+        const rightLabel = document.getElementById('rightLabel');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const enterFullscreenBtn = document.getElementById('enterFullscreenBtn');
+        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
+
+        // 状态
+        let currentVideo = 'fight';
+        let currentMode = 'prob';
+        let sliderPosition = 50;
+        let isDragging = false;
+        let isLoading = false;
+        let syncIntervalId = null;
+
+        // 初始化
+        function init() {
+            loadVideo(currentVideo, currentMode);
+            setupEventListeners();
+        }
+
+        // 加载视频
+        async function loadVideo(videoKey, mode) {
+            if (isLoading) return;
+
+            isLoading = true;
+            showLoading(true);
+
+            leftVideo.pause();
+            rightVideo.pause();
+            stopSync();
+            updatePlayButton(false);
+
+            const config = videoConfig[videoKey];
+            leftLabel.textContent = '原视频';
+            rightLabel.textContent = mode === 'prob' ? 'prob-4' : 'slp-2.5';
+
+            await Promise.all([
+                loadVideoElement(leftVideo, config.original),
+                loadVideoElement(rightVideo, mode === 'prob' ? config.prob : config.slp)
+            ]);
+
+            isLoading = false;
+            showLoading(false);
+            leftVideo.currentTime = 0;
+            rightVideo.currentTime = 0;
+            updateProgress();
+        }
+
+        // 加载单个视频
+        function loadVideoElement(video, src) {
+            return new Promise((resolve) => {
+                video.src = src;
+                video.load();
+
+                const onCanPlay = () => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                };
+
+                const onError = () => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                };
+
+                video.addEventListener('canplay', onCanPlay);
+                video.addEventListener('error', onError);
+
+                setTimeout(() => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                }, 8000);
+            });
+        }
+
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('visible', show);
+        }
+
+        // 播放/暂停
+        function togglePlay() {
+            if (isLoading) return;
+
+            if (leftVideo.paused) {
+                syncVideos();
+                leftVideo.play();
+                rightVideo.play();
+                startSync();
+                updatePlayButton(true);
+            } else {
+                leftVideo.pause();
+                rightVideo.pause();
+                stopSync();
+                syncVideos();
+                updatePlayButton(false);
+            }
+        }
+
+        function updatePlayButton(isPlaying) {
+            playIcon.textContent = isPlaying ? '⏸' : '▶';
+            playBtn.classList.toggle('active', isPlaying);
+        }
+
+        function syncVideos() {
+            if (!leftVideo.duration || !rightVideo.duration) return;
+
+            const diff = Math.abs(leftVideo.currentTime - rightVideo.currentTime);
+            if (diff > 0.05) {
+                rightVideo.pause();
+                rightVideo.currentTime = leftVideo.currentTime;
+                if (!leftVideo.paused) {
+                    rightVideo.play();
+                }
+            }
+        }
+
+        function startSync() {
+            stopSync();
+            syncIntervalId = setInterval(() => {
+                if (!leftVideo.paused) {
+                    syncVideos();
+                }
+            }, 50);
+        }
+
+        function stopSync() {
+            if (syncIntervalId) {
+                clearInterval(syncIntervalId);
+                syncIntervalId = null;
+            }
+        }
+
+        function updateProgress() {
+            if (!leftVideo.duration) return;
+
+            const percent = (leftVideo.currentTime / leftVideo.duration) * 100;
+            progressFill.style.width = `${percent}%`;
+
+            const current = formatTime(leftVideo.currentTime);
+            const total = formatTime(leftVideo.duration);
+            timeDisplay.textContent = `${current} / ${total}`;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateSliderPosition(percent) {
+            sliderPosition = Math.max(0, Math.min(100, percent));
+            sliderLine.style.left = `${sliderPosition}%`;
+            rightVideo.style.clipPath = `inset(0 0 0 ${sliderPosition}%)`;
+        }
+
+        function handleSliderMove(e) {
+            if (!isDragging) return;
+
+            const rect = videoWrapper.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const percent = (x / rect.width) * 100;
+            updateSliderPosition(percent);
+        }
+
+        function switchVideo(videoKey) {
+            if (videoKey === currentVideo || isLoading) return;
+
+            document.querySelectorAll('.video-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.video === videoKey);
+            });
+
+            currentVideo = videoKey;
+            loadVideo(videoKey, currentMode);
+        }
+
+        function switchMode(mode) {
+            if (mode === currentMode || isLoading) return;
+
+            document.querySelectorAll('.comparison-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.mode === mode);
+            });
+
+            currentMode = mode;
+            loadVideo(currentVideo, mode);
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.body.classList.add('fullscreen');
+                document.documentElement.requestFullscreen?.();
+            } else {
+                document.body.classList.remove('fullscreen');
+                document.exitFullscreen?.();
+            }
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('.video-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchVideo(btn.dataset.video));
+            });
+
+            document.querySelectorAll('.comparison-tab').forEach(tab => {
+                tab.addEventListener('click', () => switchMode(tab.dataset.mode));
+            });
+
+            playBtn.addEventListener('click', togglePlay);
+
+            syncBtn.addEventListener('click', () => {
+                if (!isLoading) {
+                    leftVideo.currentTime = 0;
+                    rightVideo.currentTime = 0;
+                }
+            });
+
+            progressBar.addEventListener('click', (e) => {
+                if (!leftVideo.duration || isLoading) return;
+
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const targetTime = leftVideo.duration * percent;
+
+                leftVideo.currentTime = targetTime;
+                rightVideo.currentTime = targetTime;
+            });
+
+            enterFullscreenBtn.addEventListener('click', toggleFullscreen);
+            exitFullscreenBtn.addEventListener('click', toggleFullscreen);
+
+            sliderLine.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            videoWrapper.addEventListener('mousedown', (e) => {
+                if (e.target === sliderLine || e.target.closest('.slider-line')) return;
+                isDragging = true;
+                handleSliderMove(e);
+            });
+
+            document.addEventListener('mousemove', handleSliderMove);
+            document.addEventListener('mouseup', () => { isDragging = false; });
+
+            sliderLine.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            videoWrapper.addEventListener('touchstart', (e) => {
+                if (e.target === sliderLine || e.target.closest('.slider-line')) return;
+                isDragging = true;
+                handleSliderMove(e);
+            });
+
+            document.addEventListener('touchmove', handleSliderMove);
+            document.addEventListener('touchend', () => { isDragging = false; });
+
+            leftVideo.addEventListener('timeupdate', updateProgress);
+            leftVideo.addEventListener('play', () => {
+                updatePlayButton(true);
+                startSync();
+            });
+            leftVideo.addEventListener('pause', () => {
+                updatePlayButton(false);
+                stopSync();
+            });
+            leftVideo.addEventListener('ended', () => {
+                leftVideo.currentTime = 0;
+                rightVideo.currentTime = 0;
+                updatePlayButton(false);
+                stopSync();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                switch (e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        togglePlay();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        updateSliderPosition(sliderPosition - 2);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        updateSliderPosition(sliderPosition + 2);
+                        break;
+                    case 'KeyF':
+                        e.preventDefault();
+                        toggleFullscreen();
+                        break;
+                }
+            });
+
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) {
+                    document.body.classList.remove('fullscreen');
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
