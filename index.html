@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频效果对比</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 16px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .video-selector {
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            background: #111;
+        }
+
+        .video-btn {
+            padding: 8px 16px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: #888;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .video-btn:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        .video-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .comparison-section {
+            padding: 12px 16px;
+            background: #111;
+            border-bottom: 1px solid #222;
+        }
+
+        .comparison-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .comparison-tab {
+            padding: 6px 14px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #666;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .comparison-tab:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+
+        .comparison-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 220px);
+            min-height: 400px;
+            background: #000;
+            cursor: col-resize;
+            overflow: hidden;
+        }
+
+        .video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #leftVideo {
+            z-index: 1;
+        }
+
+        #rightVideo {
+            z-index: 2;
+            clip-path: inset(0 0 0 50%);
+        }
+
+        .slider-line {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            z-index: 10;
+            transform: translateX(-50%);
+            cursor: col-resize;
+        }
+
+        .slider-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 7px;
+            transform: translate(-50%, -50%);
+            cursor: col-resize;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .video-label {
+            position: absolute;
+            top: 16px;
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .label-left {
+            left: 16px;
+        }
+
+        .label-right {
+            right: 16px;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 12px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .controls {
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            background: #0a0a0a;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #222;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: #333;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .control-btn.primary:hover {
+            opacity: 0.9;
+        }
+
+        .control-btn.active {
+            background: #f00;
+        }
+
+        .progress-bar {
+            flex: 1;
+            min-width: 200px;
+            max-width: 500px;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .time-display {
+            font-size: 13px;
+            color: #888;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .keyboard-hint {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: #555;
+            background: #0a0a0a;
+        }
+
+        .keyboard-hint kbd {
+            padding: 2px 6px;
+            background: #222;
+            border-radius: 4px;
+            margin: 0 2px;
+        }
+
+        .mode-indicator {
+            text-align: center;
+            padding: 6px;
+            font-size: 12px;
+            color: #555;
+            background: #0a0a0a;
+        }
+
+        /* 全屏模式 */
+        .fullscreen .header,
+        .fullscreen .video-selector,
+        .fullscreen .comparison-section,
+        .fullscreen .mode-indicator,
+        .fullscreen .keyboard-hint {
+            display: none;
+        }
+
+        .fullscreen .video-wrapper {
+            height: 100vh;
+        }
+
+        .fullscreen .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            padding: 12px 20px;
+            z-index: 100;
+        }
+
+        .exit-fullscreen-btn {
+            display: none;
+        }
+
+        .fullscreen .exit-fullscreen-btn {
+            display: flex;
+        }
+
+        .fullscreen .enter-fullscreen-btn {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>视频效果对比</h1>
+    </header>
+
+    <nav class="video-selector">
+        <button class="video-btn active" data-video="fight">第一组</button>
+        <button class="video-btn" data-video="ink">第二组</button>
+        <button class="video-btn" data-video="war01">第三组</button>
+        <button class="video-btn" data-video="war02">第四组</button>
+        <button class="video-btn" data-video="general">第五组</button>
+    </nav>
+
+    <section class="comparison-section">
+        <div class="comparison-tabs">
+            <button class="comparison-tab active" data-mode="prob">原视频 vs prob-4</button>
+            <button class="comparison-tab" data-mode="slp">原视频 vs slp-2.5</button>
+        </div>
+    </section>
+
+    <div class="video-container">
+        <div class="video-wrapper" id="videoWrapper">
+            <video id="leftVideo" muted playsinline preload="auto"></video>
+            <video id="rightVideo" muted playsinline preload="auto"></video>
+            <div class="slider-line" id="sliderLine">
+                <div class="slider-handle"></div>
+            </div>
+            <span class="video-label label-left" id="leftLabel">原视频</span>
+            <span class="video-label label-right" id="rightLabel">prob-4</span>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <span class="loading-text">加载中...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-btn primary" id="playBtn">
+            <span id="playIcon">▶</span>
+            <span id="playText">播放</span>
+        </button>
+        <button class="control-btn" id="syncBtn">同步</button>
+        <button class="control-btn" id="enterFullscreenBtn">全屏</button>
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+        <button class="control-btn exit-fullscreen-btn" id="exitFullscreenBtn">退出全屏</button>
+    </div>
+
+    <div class="mode-indicator" id="modeIndicator">
+        当前：原视频 vs prob-4 · 空格暂停/播放 · 点击进度条跳转
+    </div>
+
+    <script>
+        // 视频配置
+        const videoConfig = {
+            fight: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight_01.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/fight-slp-2.5.mp4'
+            },
+            ink: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/ink-slp-2.5.mp4'
+            },
+            war01: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war01-slp-2.5.mp4'
+            },
+            war02: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02-prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/war02-slp-2.5.mp4'
+            },
+            general: {
+                original: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight.mp4',
+                prob: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight_prob-4.mp4',
+                slp: 'https://hym-1422126808.cos.ap-guangzhou.myqcloud.com/general_fight_slp-2.5.mp4'
+            }
+        };
+
+        const videoNames = {
+            fight: '战斗场景',
+            ink: '水墨风格',
+            war01: '战争场景1',
+            war02: '战争场景2',
+            general: '将军对决'
+        };
+
+        // DOM 元素
+        const leftVideo = document.getElementById('leftVideo');
+        const rightVideo = document.getElementById('rightVideo');
+        const sliderLine = document.getElementById('sliderLine');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const playText = document.getElementById('playText');
+        const syncBtn = document.getElementById('syncBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const leftLabel = document.getElementById('leftLabel');
+        const rightLabel = document.getElementById('rightLabel');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const modeIndicator = document.getElementById('modeIndicator');
+        const enterFullscreenBtn = document.getElementById('enterFullscreenBtn');
+        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
+
+        // 状态
+        let currentVideo = 'fight';
+        let currentMode = 'prob';
+        let sliderPosition = 50;
+        let isDragging = false;
+        let isLoading = false;
+        let syncIntervalId = null;
+        let lastSyncTime = 0;
+
+        // 初始化
+        function init() {
+            loadVideo(currentVideo, currentMode);
+            setupEventListeners();
+        }
+
+        // 加载视频
+        async function loadVideo(videoKey, mode, startFrom = 0) {
+            if (isLoading) return;
+
+            isLoading = true;
+            showLoading(true);
+
+            // 停止当前播放
+            leftVideo.pause();
+            rightVideo.pause();
+            stopSync();
+            updatePlayButton(false);
+
+            const config = videoConfig[videoKey];
+            const leftSrc = config.original;
+            const rightSrc = mode === 'prob' ? config.prob : config.slp;
+
+            // 更新标签
+            leftLabel.textContent = '原视频';
+            rightLabel.textContent = mode === 'prob' ? 'prob-4' : 'slp-2.5';
+            modeIndicator.textContent = `当前：${videoNames[videoKey]} · 原视频 vs ${mode === 'prob' ? 'prob-4' : 'slp-2.5'}`;
+
+            // 使用 Promise 等待视频加载
+            await Promise.all([
+                loadVideoElement(leftVideo, leftSrc),
+                loadVideoElement(rightVideo, rightSrc)
+            ]);
+
+            isLoading = false;
+            showLoading(false);
+
+            // 从头开始
+            leftVideo.currentTime = 0;
+            rightVideo.currentTime = 0;
+            updateProgress();
+        }
+
+        // 加载单个视频元素
+        function loadVideoElement(video, src) {
+            return new Promise((resolve) => {
+                video.src = src;
+                video.load();
+
+                const onCanPlay = () => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                };
+
+                const onError = () => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                };
+
+                video.addEventListener('canplay', onCanPlay);
+                video.addEventListener('error', onError);
+
+                // 超时处理
+                setTimeout(() => {
+                    video.removeEventListener('canplay', onCanPlay);
+                    video.removeEventListener('error', onError);
+                    resolve();
+                }, 8000);
+            });
+        }
+
+        // 显示/隐藏加载
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('visible', show);
+        }
+
+        // 播放/暂停
+        function togglePlay() {
+            if (isLoading) return;
+
+            if (leftVideo.paused) {
+                // 播放前先同步
+                syncVideos(true);
+                leftVideo.play();
+                rightVideo.play();
+                startSync();
+                updatePlayButton(true);
+            } else {
+                leftVideo.pause();
+                rightVideo.pause();
+                stopSync();
+                // 暂停时也同步一次
+                syncVideos(false);
+                updatePlayButton(false);
+            }
+        }
+
+        // 更新播放按钮
+        function updatePlayButton(isPlaying) {
+            playIcon.textContent = isPlaying ? '⏸' : '▶';
+            playText.textContent = isPlaying ? '暂停' : '播放';
+            playBtn.classList.toggle('active', isPlaying);
+        }
+
+        // 同步两个视频
+        function syncVideos(forceSync = false) {
+            const now = performance.now();
+            if (!forceSync && now - lastSyncTime < 50) return; // 限制同步频率
+            lastSyncTime = now;
+
+            if (!leftVideo.duration || !rightVideo.duration) return;
+
+            const diff = Math.abs(leftVideo.currentTime - rightVideo.currentTime);
+            const masterTime = leftVideo.currentTime;
+
+            // 如果差异超过 0.05 秒，进行强制同步
+            if (diff > 0.05) {
+                rightVideo.pause();
+                rightVideo.currentTime = masterTime;
+
+                // 如果左边在播放，右边也播放
+                if (!leftVideo.paused) {
+                    rightVideo.play();
+                }
+            }
+        }
+
+        // 开始持续同步
+        function startSync() {
+            stopSync();
+            syncIntervalId = setInterval(() => {
+                if (!leftVideo.paused) {
+                    syncVideos(false);
+                }
+            }, 50); // 每50ms同步一次
+        }
+
+        // 停止同步
+        function stopSync() {
+            if (syncIntervalId) {
+                clearInterval(syncIntervalId);
+                syncIntervalId = null;
+            }
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            if (!leftVideo.duration) return;
+
+            const percent = (leftVideo.currentTime / leftVideo.duration) * 100;
+            progressFill.style.width = `${percent}%`;
+
+            const current = formatTime(leftVideo.currentTime);
+            const total = formatTime(leftVideo.duration);
+            timeDisplay.textContent = `${current} / ${total}`;
+        }
+
+        // 格式化时间
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 更新滑块位置
+        function updateSliderPosition(percent) {
+            sliderPosition = Math.max(0, Math.min(100, percent));
+            sliderLine.style.left = `${sliderPosition}%`;
+            rightVideo.style.clipPath = `inset(0 0 0 ${sliderPosition}%)`;
+        }
+
+        // 拖动滑块
+        function handleSliderMove(e) {
+            if (!isDragging) return;
+
+            const rect = videoWrapper.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const percent = (x / rect.width) * 100;
+            updateSliderPosition(percent);
+        }
+
+        // 切换视频组
+        function switchVideo(videoKey) {
+            if (videoKey === currentVideo || isLoading) return;
+
+            document.querySelectorAll('.video-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.video === videoKey);
+            });
+
+            currentVideo = videoKey;
+            loadVideo(videoKey, currentMode);
+        }
+
+        // 切换对比模式
+        function switchMode(mode) {
+            if (mode === currentMode || isLoading) return;
+
+            document.querySelectorAll('.comparison-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.mode === mode);
+            });
+
+            currentMode = mode;
+            loadVideo(currentVideo, mode);
+        }
+
+        // 全屏切换
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.body.classList.add('fullscreen');
+                document.documentElement.requestFullscreen?.();
+            } else {
+                document.body.classList.remove('fullscreen');
+                document.exitFullscreen?.();
+            }
+        }
+
+        // 设置事件监听
+        function setupEventListeners() {
+            // 视频按钮
+            document.querySelectorAll('.video-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchVideo(btn.dataset.video));
+            });
+
+            // 对比模式切换
+            document.querySelectorAll('.comparison-tab').forEach(tab => {
+                tab.addEventListener('click', () => switchMode(tab.dataset.mode));
+            });
+
+            // 播放/暂停按钮
+            playBtn.addEventListener('click', togglePlay);
+
+            // 同步按钮
+            syncBtn.addEventListener('click', () => {
+                if (!isLoading) {
+                    leftVideo.currentTime = 0;
+                    rightVideo.currentTime = 0;
+                }
+            });
+
+            // 进度条点击
+            progressBar.addEventListener('click', (e) => {
+                if (!leftVideo.duration || isLoading) return;
+
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const targetTime = leftVideo.duration * percent;
+
+                leftVideo.currentTime = targetTime;
+                rightVideo.currentTime = targetTime;
+            });
+
+            // 全屏按钮
+            enterFullscreenBtn.addEventListener('click', toggleFullscreen);
+            exitFullscreenBtn.addEventListener('click', toggleFullscreen);
+
+            // 滑块拖动
+            sliderLine.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            videoWrapper.addEventListener('mousedown', (e) => {
+                if (e.target === sliderLine || e.target.closest('.slider-line')) return;
+                isDragging = true;
+                handleSliderMove(e);
+            });
+
+            document.addEventListener('mousemove', handleSliderMove);
+            document.addEventListener('mouseup', () => { isDragging = false; });
+
+            // 触摸滑动
+            sliderLine.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            videoWrapper.addEventListener('touchstart', (e) => {
+                if (e.target === sliderLine || e.target.closest('.slider-line')) return;
+                isDragging = true;
+                handleSliderMove(e);
+            });
+
+            document.addEventListener('touchmove', handleSliderMove);
+            document.addEventListener('touchend', () => { isDragging = false; });
+
+            // 视频事件
+            leftVideo.addEventListener('timeupdate', updateProgress);
+            leftVideo.addEventListener('play', () => {
+                updatePlayButton(true);
+                startSync();
+            });
+            leftVideo.addEventListener('pause', () => {
+                updatePlayButton(false);
+                stopSync();
+            });
+            leftVideo.addEventListener('ended', () => {
+                leftVideo.currentTime = 0;
+                rightVideo.currentTime = 0;
+                updatePlayButton(false);
+                stopSync();
+            });
+
+            // 键盘控制
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                switch (e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        togglePlay();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        updateSliderPosition(sliderPosition - 2);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        updateSliderPosition(sliderPosition + 2);
+                        break;
+                    case 'KeyF':
+                        e.preventDefault();
+                        toggleFullscreen();
+                        break;
+                }
+            });
+
+            // 全屏变化
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) {
+                    document.body.classList.remove('fullscreen');
+                }
+            });
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
